@@ -1,11 +1,83 @@
 import os
+import re
 from subprocess import call
+from collections import namedtuple
 
-rootdirs = ["D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectRuntime\\Private",
-	"D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectHelpSystem\\Private",
-	"D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectEditor\\Private"]
+FileInfo = namedtuple("FileInfo", "rootdir dir cname")
+headerList = {}
 
-sedexprs = []
+code_copyright = "//$ Copyright 2015-18, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//"
+
+rootdirs = ["D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectRuntime",
+	"D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectHelpSystem",
+	"D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectEditor"]
+
+
+def ProcessInclude(include):
+	pattern_dir = '#include \".*/(.*).h\"'
+	pattern_simple = '#include \"(.*).h\"'
+	
+	m = re.search(pattern_dir, include)
+	if not m:
+		m = re.search(pattern_simple, include)
+		
+	if not m:
+		return include, False
+		
+	cname = m.group(1)
+	if not cname in headerList:
+		print "FAIL:", cname
+		return include, False
+	
+	# We found a class include that is part of the project
+	info = headerList[cname]
+	if len(info.dir) == 0:
+		return include, True
+
+	# Rewrite with the absolute path
+	include = '#include \"%s/%s.h\"' % (info.dir, info.cname)
+	
+	return include, True
+	
+def ProcessIncludes(pch, base_includes):
+	user_includes = []
+	engine_includes = []
+	
+	for base_include in base_includes:
+		include, bUserCode = ProcessInclude(base_include)
+		if bUserCode:
+			user_includes.append(include)
+		else:
+			engine_includes.append(include)
+			
+		#print bUserCode, include
+			
+	user_includes.sort()
+	engine_includes.sort()
+	
+	result = []
+	result.append(ProcessInclude(pch)[0])
+	
+	if (len(user_includes) > 0):
+		result.append("")
+		result.extend(user_includes)
+		
+	if (len(engine_includes) > 0):
+		result.append("")
+		result.extend(engine_includes)
+	
+	return result
+	
+def readFile(path):
+	lines = []
+	with open(path) as f:
+		lines = f.read().splitlines()	
+	return lines
+
+def writeFile(path, lines):
+	with open(path, 'w') as f:
+		for line in lines:
+			f.write('%s\n' % line)
 	
 def stringify_path(path):
 	return path.replace("\\", "/")
@@ -13,37 +85,95 @@ def stringify_path(path):
 def stringify(text):
 	return text.replace("\"", "\\\"").replace("/", "\\/")
 
-def GatherReplacements(rootdir, dir, file):
-	filePath = "%s\\%s" % (dir, file)
-	if not filePath.endswith(".cpp"):
-		return
+def IsLineInclude(line):
+	return line.startswith("#include ")
+	
+def IsLineCopyright(line):
+	sline = line.strip()
+	return sline.startswith("//$") and sline.endswith("$//")
+	
+def IsLineEmpty(line):
+	return len(line.strip()) == 0
+	
+# returns pch, includes[], code[]
+def ProcessRawLines(rawLines):
+	# Make sure we have a line ending
+	if len(rawLines[-1]) > 0:
+		rawLines.append("")
+	
+	code = []
+	includes = []
+	pch = ""
+	bFoundPCH = False
+	
+	bProcessingHeader = True
+	for rawLine in rawLines:
+		if bProcessingHeader:
+			if IsLineEmpty(rawLine):
+				continue
+			elif IsLineCopyright(rawLine):
+				continue
+			elif IsLineInclude(rawLine):
+				if not bFoundPCH:
+					bFoundPCH = True
+					pch = rawLine
+				else:
+					includes.append(rawLine)
+					
+			else:
+				bProcessingHeader = False;
 		
-	className = file[:-4]
-	searchText = "#include \"%s.h\"" % className
-	basePath = filePath[len(rootdir) + 1:-len(file)].replace("\\", "/")
-	if len(basePath) == 0:
-		return;
+		if not bProcessingHeader:
+			code.append(rawLine)
+	return pch, includes, code
 	
-	replaceText = "#include \"%s%s.h\"" % (basePath, className)
-	sedexpr = "s/%s/%s/g" % (stringify(searchText), stringify(replaceText))
-	sedexprs.append(sedexpr)
+def ProcessFile(info):
+	filePath = "%s\\%s\\%s.cpp" % (info.rootdir, info.dir, info.cname)
+	print "Processing:", filePath
 	
+	pch, base_includes, code = ProcessRawLines(readFile(filePath))
+	
+	includes = ProcessIncludes(pch, base_includes)
+	
+	lines = []
+	lines.append(code_copyright)
+	lines.append("")
+	lines.extend(includes)
+	lines.append("")
+	lines.extend(code)
+	
+	
+	writeFile(filePath, lines)
+	
+	#print stringify_path(filePath)
+	return True
 
-def ProcessFile(rootdir, dir, file):
-	ContainsInclude(rootdir, dir, file)
-	
-	className = file[:-4]
-	#print "Processing: " + className
-
-for rootdir in rootdirs:
+def GenerateFileList(rootdir, extension, fileList):
 	for dir, subdirs, files in os.walk(rootdir):
 		for file in files:
-			GatherReplacements(rootdir, dir, file)
+			if not file.endswith(extension):
+				continue
+			reldir = dir[len(rootdir)+1:]
+			reldir = reldir.replace("\\", "/")
+			cname = file[:-len(extension)-1]
+			print cname
+			fileInfo = FileInfo(rootdir, reldir, cname)
+			if file.endswith(".%s" % extension):
+				fileList[cname] = fileInfo
 
-sed_file = open("sed_rules.txt", "w")
-#command = "sed -i \"%s\" %s" % (expr, stringify_path(filePath))
-
-for expr in sedexprs:
-	sed_file.write(expr + "\n")
 	
-sed_file.close()
+sourceList = {}
+for rootdir in rootdirs:
+	rootPublic = "%s\\Public" % rootdir
+	rootPrivate = "%s\\Private" % rootdir
+	GenerateFileList(rootPublic, "h", headerList)
+	GenerateFileList(rootPrivate, "h", headerList)
+	GenerateFileList(rootPrivate, "cpp", sourceList)
+
+	
+for key, info in sourceList.items():
+	###################################
+	if not info.cname == "FloorPlanBuilder":
+		continue
+	###################################
+	ProcessFile(info)
