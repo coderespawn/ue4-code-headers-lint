@@ -26,7 +26,6 @@ def ProcessInclude(include):
 		
 	cname = m.group(1)
 	if not cname in headerList:
-		print "FAIL:", cname
 		return include, False
 	
 	# We found a class include that is part of the project
@@ -49,8 +48,6 @@ def ProcessIncludes(pch, base_includes):
 			user_includes.append(include)
 		else:
 			engine_includes.append(include)
-			
-		#print bUserCode, include
 			
 	user_includes.sort()
 	engine_includes.sort()
@@ -129,7 +126,7 @@ def ProcessRawLines(rawLines):
 	
 def ProcessFile(info):
 	filePath = "%s\\%s\\%s.cpp" % (info.rootdir, info.dir, info.cname)
-	print "Processing:", filePath
+	print "Processing:", info.cname
 	
 	pch, base_includes, code = ProcessRawLines(readFile(filePath))
 	
@@ -144,8 +141,6 @@ def ProcessFile(info):
 	
 	
 	writeFile(filePath, lines)
-	
-	#print stringify_path(filePath)
 	return True
 
 def GenerateFileList(rootdir, extension, fileList):
@@ -156,7 +151,6 @@ def GenerateFileList(rootdir, extension, fileList):
 			reldir = dir[len(rootdir)+1:]
 			reldir = reldir.replace("\\", "/")
 			cname = file[:-len(extension)-1]
-			print cname
 			fileInfo = FileInfo(rootdir, reldir, cname)
 			if file.endswith(".%s" % extension):
 				fileList[cname] = fileInfo
