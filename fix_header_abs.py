@@ -162,12 +162,9 @@ for rootdir in rootdirs:
 	rootPrivate = "%s\\Private" % rootdir
 	GenerateFileList(rootPublic, "h", headerList)
 	GenerateFileList(rootPrivate, "h", headerList)
+	GenerateFileList(rootPublic, "cpp", sourceList)
 	GenerateFileList(rootPrivate, "cpp", sourceList)
 
 	
 for key, info in sourceList.items():
-	###################################
-	if not info.cname == "FloorPlanBuilder":
-		continue
-	###################################
 	ProcessFile(info)
