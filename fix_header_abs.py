@@ -38,7 +38,7 @@ def ProcessInclude(include):
 	
 	return include, True
 	
-def ProcessIncludes(pch, base_includes):
+def ProcessIncludes(base_includes):
 	user_includes = []
 	engine_includes = []
 	
@@ -53,14 +53,13 @@ def ProcessIncludes(pch, base_includes):
 	engine_includes.sort()
 	
 	result = []
-	result.append(ProcessInclude(pch)[0])
 	
 	if (len(user_includes) > 0):
-		result.append("")
 		result.extend(user_includes)
 		
 	if (len(engine_includes) > 0):
-		result.append("")
+		if (len(result) > 0):
+			result.append("")
 		result.extend(engine_includes)
 	
 	return result
@@ -87,13 +86,13 @@ def IsLineInclude(line):
 	
 def IsLineCopyright(line):
 	sline = line.strip()
-	return sline.startswith("//$") and sline.endswith("$//")
+	return sline.startswith("//$ Copyright") # and sline.endswith("$//")
 	
 def IsLineEmpty(line):
 	return len(line.strip()) == 0
 	
 # returns pch, includes[], code[]
-def ProcessRawLines(rawLines):
+def ProcessSourceRawLines(rawLines):
 	# Make sure we have a line ending
 	if len(rawLines[-1]) > 0:
 		rawLines.append("")
@@ -124,13 +123,16 @@ def ProcessRawLines(rawLines):
 			code.append(rawLine)
 	return pch, includes, code
 	
-def ProcessFile(info):
+def ProcessSourceFile(info):
 	filePath = "%s\\%s\\%s.cpp" % (info.rootdir, info.dir, info.cname)
-	print "Processing:", info.cname
+	print "Source:", info.cname
 	
-	pch, base_includes, code = ProcessRawLines(readFile(filePath))
+	pch, base_includes, code = ProcessSourceRawLines(readFile(filePath))
 	
-	includes = ProcessIncludes(pch, base_includes)
+	includes = []
+	includes.append(ProcessInclude(pch)[0])
+	includes.append("")
+	includes.extend(ProcessIncludes(base_includes))
 	
 	lines = []
 	lines.append(code_copyright)
@@ -143,6 +145,65 @@ def ProcessFile(info):
 	writeFile(filePath, lines)
 	return True
 
+# returns includes[], genheader, code[]
+def ProcessHeaderRawLines(rawLines):
+	# Make sure we have a line ending
+	if len(rawLines[-1]) > 0:
+		rawLines.append("")
+	
+	code = []
+	includes = []
+	genheader = None
+	
+	bProcessingHeader = True
+	for rawLine in rawLines:
+		if bProcessingHeader:
+			if IsLineEmpty(rawLine):
+				continue
+			elif IsLineCopyright(rawLine):
+				continue
+			elif rawLine.strip() == '#pragma once':
+				continue
+			elif rawLine.strip() == '#include \"CoreMinimal.h\"':
+				continue
+			elif IsLineInclude(rawLine):
+				if rawLine.strip().endswith(".generated.h\""):
+					genheader = rawLine
+				else:
+					includes.append(rawLine)
+			else:
+				bProcessingHeader = False;
+		
+		if not bProcessingHeader:
+			code.append(rawLine)
+			
+	return includes, genheader, code
+	
+	
+def ProcessHeaderFile(info):
+	filePath = "%s\\%s\\%s.h" % (info.rootdir, info.dir, info.cname)
+	print "Header:", info.cname
+	
+	base_includes, genheader, code = ProcessHeaderRawLines(readFile(filePath))
+	
+	includes = ProcessIncludes(base_includes)
+	
+	lines = []
+	lines.append(code_copyright)
+	lines.append("")
+	lines.append("#pragma once")
+	lines.append("#include \"CoreMinimal.h\"")
+	lines.extend(includes)
+	if genheader:
+		lines.append(genheader)
+		
+	lines.append("")
+	lines.extend(code)
+	
+	
+	writeFile(filePath, lines)
+	return True
+	
 def GenerateFileList(rootdir, extension, fileList):
 	for dir, subdirs, files in os.walk(rootdir):
 		for file in files:
@@ -167,4 +228,7 @@ for rootdir in rootdirs:
 
 	
 for key, info in sourceList.items():
-	ProcessFile(info)
+	ProcessSourceFile(info)
+
+for key, info in headerList.items():
+	ProcessHeaderFile(info)
