@@ -3,20 +3,24 @@ import re
 from subprocess import call
 from collections import namedtuple
 
+# Configuration
+PLUGIN_SOURCE = "D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source"
+ENGINE_SOURCE = "D:\\Program Files\\Epic Games\\UE_4.20\\Engine\\Source"
+COPYRIGHT_NOTICE = "//$ Copyright 2015-18, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//"
+###
+
 FileInfo = namedtuple("FileInfo", "rootdir dir cname")
 userHeaders = {}
 engineHeaders = {}
 
-code_copyright = "//$ Copyright 2015-18, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//"
-
-rootdirs = ["D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectRuntime",
-	"D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectHelpSystem",
-	"D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source\\DungeonArchitectEditor"]
+rootdirs = ["%s\\DungeonArchitectRuntime" % PLUGIN_SOURCE,
+	"%s\\DungeonArchitectHelpSystem" % PLUGIN_SOURCE,
+	"%s\\DungeonArchitectEditor" % PLUGIN_SOURCE]
 
 
 enginedirs = [
-	"D:\\Program Files\\Epic Games\\UE_4.20\\Engine\\Source\\Runtime",
-	"D:\\Program Files\\Epic Games\\UE_4.20\\Engine\\Source\\Editor"]
+	"%s\\Runtime" % ENGINE_SOURCE,
+	"%s\\Editor" % ENGINE_SOURCE]
 	
 	
 def ProcessInclude(include):
@@ -98,12 +102,15 @@ def IsLineInclude(line):
 def IsLineCopyright(line):
 	sline = line.strip()
 	return sline.startswith("//$ Copyright") # and sline.endswith("$//")
+
+def IsComment(line):
+	return line.strip().startswith("//")
 	
 def IsLineEmpty(line):
 	return len(line.strip()) == 0
 	
 # returns pch, includes[], code[]
-def ProcessSourceRawLines(rawLines):
+def ProcessSourceRawLines(rawLines, cname):
 	# Make sure we have a line ending
 	if len(rawLines[-1]) > 0:
 		rawLines.append("")
@@ -132,13 +139,16 @@ def ProcessSourceRawLines(rawLines):
 		
 		if not bProcessingHeader:
 			code.append(rawLine)
+			if IsLineInclude(rawLine):
+				print "WARN: Include not processed:", cname
+			
 	return pch, includes, code
 	
 def ProcessSourceFile(info):
 	filePath = "%s\\%s\\%s.cpp" % (info.rootdir, info.dir, info.cname)
 	#print "Source:", info.cname
 	
-	pch, base_includes, code = ProcessSourceRawLines(readFile(filePath))
+	pch, base_includes, code = ProcessSourceRawLines(readFile(filePath), "%s.cpp" % info.cname)
 	
 	includes = []
 	includes.append(ProcessInclude(pch)[0])
@@ -146,7 +156,7 @@ def ProcessSourceFile(info):
 	includes.extend(ProcessIncludes(base_includes))
 	
 	lines = []
-	lines.append(code_copyright)
+	lines.append(COPYRIGHT_NOTICE)
 	lines.append("")
 	lines.extend(includes)
 	lines.append("")
@@ -157,7 +167,7 @@ def ProcessSourceFile(info):
 	return True
 
 # returns includes[], genheader, code[]
-def ProcessHeaderRawLines(rawLines):
+def ProcessHeaderRawLines(rawLines, cname):
 	# Make sure we have a line ending
 	if len(rawLines[-1]) > 0:
 		rawLines.append("")
@@ -187,6 +197,8 @@ def ProcessHeaderRawLines(rawLines):
 		
 		if not bProcessingHeader:
 			code.append(rawLine)
+			if IsLineInclude(rawLine):
+				print "WARN: Include not processed:", cname
 			
 	return includes, genheader, code
 	
@@ -195,12 +207,12 @@ def ProcessHeaderFile(info):
 	filePath = "%s\\%s\\%s.h" % (info.rootdir, info.dir, info.cname)
 	#print "Header:", info.cname
 	
-	base_includes, genheader, code = ProcessHeaderRawLines(readFile(filePath))
+	base_includes, genheader, code = ProcessHeaderRawLines(readFile(filePath), "%s.h" % info.cname)
 	
 	includes = ProcessIncludes(base_includes)
 	
 	lines = []
-	lines.append(code_copyright)
+	lines.append(COPYRIGHT_NOTICE)
 	lines.append("")
 	lines.append("#pragma once")
 	lines.append("#include \"CoreMinimal.h\"")
