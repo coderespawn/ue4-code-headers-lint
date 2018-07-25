@@ -35,7 +35,8 @@ def ProcessInclude(include):
 		# This is probably an engine header. Try to fix it from the engine header metadata
 		if cname in engineHeaders:
 			info = engineHeaders[cname]
-			include = '#include \"%s/%s.h\"' % (info.dir, info.cname)
+			if len(info.dir) > 0:
+				include = '#include \"%s/%s.h\"' % (info.dir, info.cname)
 		return include, False
 	
 	# We found a class include that is part of the project
@@ -233,6 +234,9 @@ def GenerateFileList(rootdir, extension, fileList, engineFiles = False):
 				reldir = RTrimFromSubStr(reldir, "Public")
 				reldir = RTrimFromSubStr(reldir, "Classes")
 				reldir = RTrimFromSubStr(reldir, "Private")
+				if reldir[0:1] == "/":
+					reldir = reldir[:1]
+				reldir = reldir.strip()
 			
 			cname = file[:-len(extension)-1]
 			fileInfo = FileInfo(rootdir, reldir, cname)
