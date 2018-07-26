@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from subprocess import call
 from collections import namedtuple
 
@@ -8,6 +9,10 @@ PLUGIN_SOURCE = "D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source"
 ENGINE_SOURCE = "D:\\Program Files\\Epic Games\\UE_4.20\\Engine\\Source"
 COPYRIGHT_NOTICE = "//$ Copyright 2015-18, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//"
 ###
+
+if len(sys.argv) > 1:
+	PLUGIN_SOURCE = sys.argv[1]
+	print PLUGIN_SOURCE
 
 FileInfo = namedtuple("FileInfo", "rootdir dir cname")
 userHeaders = {}
