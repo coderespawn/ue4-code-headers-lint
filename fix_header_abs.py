@@ -86,7 +86,7 @@ def ProcessIncludes(base_includes):
 	
 def readFile(path):
 	lines = []
-	with open(path) as f:
+	with open(path, 'r') as f:
 		lines = f.read().splitlines()	
 	return lines
 
@@ -113,6 +113,17 @@ def IsComment(line):
 	
 def IsLineEmpty(line):
 	return len(line.strip()) == 0
+	
+def AreLinesEqual(linesA, linesB):
+	if len(linesA) != len(linesB):
+		return False
+	
+	for idx, lineA in enumerate(linesA):
+		lineB = linesB[idx]
+		if lineA != lineB:
+			return False
+			
+	return True
 	
 # returns pch, includes[], code[]
 def ProcessSourceRawLines(rawLines, cname):
@@ -145,7 +156,7 @@ def ProcessSourceRawLines(rawLines, cname):
 		if not bProcessingHeader:
 			code.append(rawLine)
 			if IsLineInclude(rawLine):
-				print "WARN: Include not processed:", cname
+				print "WARN: Include not processed: %s.cpp" % cname
 			
 	return pch, includes, code
 	
@@ -153,7 +164,8 @@ def ProcessSourceFile(info):
 	filePath = "%s\\%s\\%s.cpp" % (info.rootdir, info.dir, info.cname)
 	#print "Source:", info.cname
 	
-	pch, base_includes, code = ProcessSourceRawLines(readFile(filePath), "%s.cpp" % info.cname)
+	rawLines = readFile(filePath)
+	pch, base_includes, code = ProcessSourceRawLines(rawLines, info.cname)
 	
 	includes = []
 	includes.append(ProcessInclude(pch)[0])
@@ -167,6 +179,8 @@ def ProcessSourceFile(info):
 	lines.append("")
 	lines.extend(code)
 	
+	if AreLinesEqual(rawLines, lines):
+		return False
 	
 	writeFile(filePath, lines)
 	return True
@@ -203,7 +217,7 @@ def ProcessHeaderRawLines(rawLines, cname):
 		if not bProcessingHeader:
 			code.append(rawLine)
 			if IsLineInclude(rawLine):
-				print "WARN: Include not processed:", cname
+				print "WARN: Include not processed: %s.h" % cname
 			
 	return includes, genheader, code
 	
@@ -212,7 +226,8 @@ def ProcessHeaderFile(info):
 	filePath = "%s\\%s\\%s.h" % (info.rootdir, info.dir, info.cname)
 	#print "Header:", info.cname
 	
-	base_includes, genheader, code = ProcessHeaderRawLines(readFile(filePath), "%s.h" % info.cname)
+	rawLines = readFile(filePath)
+	base_includes, genheader, code = ProcessHeaderRawLines(rawLines, info.cname)
 	
 	includes = ProcessIncludes(base_includes)
 	
@@ -228,6 +243,8 @@ def ProcessHeaderFile(info):
 	lines.append("")
 	lines.extend(code)
 	
+	if AreLinesEqual(rawLines, lines):
+		return False
 	
 	writeFile(filePath, lines)
 	return True
@@ -280,9 +297,15 @@ for rootdir in rootdirs:
 	GenerateFileList(rootPrivate, "cpp", sourceList)
 print "Parsed %d Headers, %d Sources" % (len(userHeaders), len(sourceList))
 
-	
+NumSourceFilesModified = 0
+NumHeaderFilesModified = 0
+
 for key, info in sourceList.items():
-	ProcessSourceFile(info)
+	if ProcessSourceFile(info):
+		NumSourceFilesModified = NumSourceFilesModified + 1
 
 for key, info in userHeaders.items():
-	ProcessHeaderFile(info)
+	if ProcessHeaderFile(info):
+		NumHeaderFilesModified = NumHeaderFilesModified + 1
+
+print "Written %d Headers, %d Sources" % (NumHeaderFilesModified, NumSourceFilesModified)
