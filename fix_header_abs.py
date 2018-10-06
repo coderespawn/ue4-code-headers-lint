@@ -3,29 +3,83 @@ import re
 import sys
 from subprocess import call
 from collections import namedtuple
+import json
+
+
+def ReadJson(filename):
+	with open(filename) as json_file:  
+		data = json.load(json_file)
+	return data
+
+def GetBaseConfig():
+	script_path = os.path.dirname(os.path.realpath(__file__))
+	config_path = "%s/config/base_config.json" % script_path
+	return ReadJson(config_path)
+	
+	
+def GetPluginConfig():
+	return ReadJson(sys.argv[1])
+
+def PrintUsage():
+	print ("Usage: %s <PluginConfigFile.json>" % os.path.basename(__file__))
+	
+	
+if len(sys.argv) < 2:
+	PrintUsage()
+	sys.exit()
+
+# grab the script config
+BaseConfig = GetBaseConfig()
+if not BaseConfig:
+	print ("cannot find base config file. aborting..")
+	sys.exit()
+
+#grab the plugin config
+PluginConfig = GetPluginConfig()
+if not PluginConfig:
+	print ("Invalid plugin config file")
+	PrintUsage()
+	sys.exit()
+
+ENGINE_VER = PluginConfig["engine_version"]
+if not ENGINE_VER:
+	print ("Missing engine_version in project config")
+	sys.exit()
+	
+if not ENGINE_VER in BaseConfig["engine_path"]:
+	print ("Unsupported engine version: %s" % ENGINE_VER)
+	sys.exit()
+
 
 # Configuration
-PLUGIN_SOURCE = "D:\\gamedev\\ue4\\DA420X\\Plugins\\DungeonArchitect\\Source"
-ENGINE_SOURCE = "D:\\Program Files\\Epic Games\\UE_4.20\\Engine\\Source"
-COPYRIGHT_NOTICE = "//$ Copyright 2015-18, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//"
+PLUGIN_SOURCE = PluginConfig["plugin_source_dir"]
+ENGINE_SOURCE = BaseConfig["engine_path"][ENGINE_VER]
+COPYRIGHT_NOTICE = BaseConfig["copyright"]
 ###
 
-if len(sys.argv) > 1:
-	PLUGIN_SOURCE = sys.argv[1]
-	print PLUGIN_SOURCE
+if not PLUGIN_SOURCE:
+	print ("plugin_source_dir not provided in project configuration")
+	sys.exit()
+	
+if not COPYRIGHT_NOTICE:
+	print ("copyright not provided in base configuration")
+	sys.exit()
+
+	
+## Init the directory list
+enginedirs = [
+	"%s/Runtime" % ENGINE_SOURCE,
+	"%s/Editor" % ENGINE_SOURCE]
+
+rootdirs = []
+for ModuleName in PluginConfig["plugin_modules"]:
+	rootdirs.append("%s/%s" % (PLUGIN_SOURCE, ModuleName))
+
 
 FileInfo = namedtuple("FileInfo", "rootdir dir cname")
 userHeaders = {}
 engineHeaders = {}
 
-rootdirs = ["%s\\DungeonArchitectRuntime" % PLUGIN_SOURCE,
-	"%s\\DungeonArchitectHelpSystem" % PLUGIN_SOURCE,
-	"%s\\DungeonArchitectEditor" % PLUGIN_SOURCE]
-
-
-enginedirs = [
-	"%s\\Runtime" % ENGINE_SOURCE,
-	"%s\\Editor" % ENGINE_SOURCE]
 	
 	
 def ProcessInclude(include):
@@ -161,7 +215,7 @@ def ProcessSourceRawLines(rawLines, cname):
 	return pch, includes, code
 	
 def ProcessSourceFile(info):
-	filePath = "%s\\%s\\%s.cpp" % (info.rootdir, info.dir, info.cname)
+	filePath = "%s/%s/%s.cpp" % (info.rootdir, info.dir, info.cname)
 	#print "Source:", info.cname
 	
 	rawLines = readFile(filePath)
@@ -223,7 +277,7 @@ def ProcessHeaderRawLines(rawLines, cname):
 	
 	
 def ProcessHeaderFile(info):
-	filePath = "%s\\%s\\%s.h" % (info.rootdir, info.dir, info.cname)
+	filePath = "%s/%s/%s.h" % (info.rootdir, info.dir, info.cname)
 	#print "Header:", info.cname
 	
 	rawLines = readFile(filePath)
@@ -289,8 +343,8 @@ print "Parsed %d Headers" % len(engineHeaders)
 print "Parsing plugin code"
 sourceList = {}
 for rootdir in rootdirs:
-	rootPublic = "%s\\Public" % rootdir
-	rootPrivate = "%s\\Private" % rootdir
+	rootPublic = "%s/Public" % rootdir
+	rootPrivate = "%s/Private" % rootdir
 	GenerateFileList(rootPublic, "h", userHeaders)
 	GenerateFileList(rootPrivate, "h", userHeaders)
 	GenerateFileList(rootPublic, "cpp", sourceList)
