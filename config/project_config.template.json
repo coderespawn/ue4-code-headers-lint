@@ -1,5 +1,5 @@
 {
-	"plugin_source_dir": "PATH_TO_PROJECT\\Plugins\\PLUGIN_NAME\\Source",
+	"plugin_source_dir": "PATH_TO_PROJECT/Plugins/PLUGIN_NAME/Source",
 	"plugin_modules": ["PluginRuntimeModule", "PluginEditorModule"],
 	"engine_version": "4.XX"
 }
