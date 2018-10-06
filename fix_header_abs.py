@@ -181,14 +181,14 @@ def AreLinesEqual(linesA, linesB):
 	
 # returns pch, includes[], code[]
 def ProcessSourceRawLines(rawLines, cname):
-	# Make sure we have a line ending
-	if len(rawLines[-1]) > 0:
-		rawLines.append("")
-	
 	code = []
 	includes = []
 	pch = ""
 	bFoundPCH = False
+	
+	# Make sure we have a line ending
+	if len(rawLines) > 0 and len(rawLines[-1]) > 0:
+		rawLines.append("")
 	
 	bProcessingHeader = True
 	for rawLine in rawLines:
@@ -241,13 +241,13 @@ def ProcessSourceFile(info):
 
 # returns includes[], genheader, code[]
 def ProcessHeaderRawLines(rawLines, cname):
-	# Make sure we have a line ending
-	if len(rawLines[-1]) > 0:
-		rawLines.append("")
-	
 	code = []
 	includes = []
 	genheader = None
+	
+	# Make sure we have a line ending
+	if len(rawLines) > 0 and len(rawLines[-1]) > 0:
+		rawLines.append("")
 	
 	bProcessingHeader = True
 	for rawLine in rawLines:
