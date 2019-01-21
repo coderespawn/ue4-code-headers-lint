@@ -21,10 +21,10 @@ def GetPluginConfig():
 	return ReadJson(sys.argv[1])
 
 def PrintUsage():
-	print ("Usage: %s <PluginConfigFile.json>" % os.path.basename(__file__))
+	print ("Usage: %s <PluginConfigFile.json> <PluginSourceDir>" % os.path.basename(__file__))
 	
 	
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
 	PrintUsage()
 	sys.exit()
 
@@ -52,13 +52,13 @@ if not ENGINE_VER in BaseConfig["engine_path"]:
 
 
 # Configuration
-PLUGIN_SOURCE = PluginConfig["plugin_source_dir"]
+PLUGIN_SOURCE = sys.argv[2]
 ENGINE_SOURCE = BaseConfig["engine_path"][ENGINE_VER]
 COPYRIGHT_NOTICE = BaseConfig["copyright"]
 ###
 
 if not PLUGIN_SOURCE:
-	print ("plugin_source_dir not provided in project configuration")
+	print ("plugin_source_dir not provided in args")
 	sys.exit()
 	
 if not COPYRIGHT_NOTICE:
