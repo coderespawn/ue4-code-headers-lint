@@ -55,7 +55,11 @@ if not ENGINE_VER in BaseConfig["engine_path"]:
 PLUGIN_SOURCE = sys.argv[2]
 ENGINE_SOURCE = BaseConfig["engine_path"][ENGINE_VER]
 COPYRIGHT_NOTICE = BaseConfig["copyright"]
+WHITELIST_PATHS = PluginConfig["whitelist_includes"]
 ###
+
+if not WHITELIST_PATHS:
+	WHITELIST_PATHS = []
 
 if not PLUGIN_SOURCE:
 	print ("plugin_source_dir not provided in args")
@@ -80,9 +84,20 @@ FileInfo = namedtuple("FileInfo", "rootdir dir cname")
 userHeaders = {}
 engineHeaders = {}
 
-	
+
+def IsWhitelisted(include):
+	pattern = '#include \"(.*)\"'
+	m = re.search(pattern, include)
+	if m:
+		path = m.group(1)
+		if path in WHITELIST_PATHS:
+			return True
+	return False
 	
 def ProcessInclude(include):
+	if IsWhitelisted(include):
+		return include, False
+	
 	pattern_dir = '#include \".*/(.*).h\"'
 	pattern_simple = '#include \"(.*).h\"'
 	
@@ -94,6 +109,7 @@ def ProcessInclude(include):
 		return include, False
 		
 	cname = m.group(1)
+	
 	if not cname in userHeaders:
 		# This is probably an engine header. Try to fix it from the engine header metadata
 		if cname in engineHeaders:
