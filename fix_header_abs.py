@@ -55,11 +55,8 @@ if not ENGINE_VER in BaseConfig["engine_path"]:
 PLUGIN_SOURCE = sys.argv[2]
 ENGINE_SOURCE = BaseConfig["engine_path"][ENGINE_VER]
 COPYRIGHT_NOTICE = BaseConfig["copyright"]
-WHITELIST_PATHS = PluginConfig["whitelist_includes"]
+WHITELIST_PATHS = PluginConfig.get("whitelist_includes", [])
 ###
-
-if not WHITELIST_PATHS:
-	WHITELIST_PATHS = []
 
 if not PLUGIN_SOURCE:
 	print ("plugin_source_dir not provided in args")
@@ -290,13 +287,32 @@ def ProcessHeaderRawLines(rawLines, cname):
 				print "WARN: Include not processed: %s.h" % cname
 			
 	return includes, genheader, code
-	
+
+
+def StripComment(line):
+	index = line.find('//')
+	if index != -1:
+		line = line[:index]
+	return line
+
+def ValidateHeaderRawLines(rawLines, filename):
+	# Check if blueprint properties have category defined
+	pattern = '(UPROPERTY|UFUNCTION)\((.*Blueprint.*)\)'
+	for i, rawLine in enumerate(rawLines):
+		line = StripComment(rawLine)
+		m = re.search(pattern, line)
+		if m:
+			params = m.group(2)
+			if params.lower().find('category') == -1:
+				print "Blueprint access doesn't have a category. [{}.h:{}] {}".format(filename, i + 1, line)
+
 	
 def ProcessHeaderFile(info):
 	filePath = "%s/%s/%s.h" % (info.rootdir, info.dir, info.cname)
 	#print "Header:", info.cname
 	
 	rawLines = readFile(filePath)
+	ValidateHeaderRawLines(rawLines, info.cname)
 	base_includes, genheader, code = ProcessHeaderRawLines(rawLines, info.cname)
 	
 	includes = ProcessIncludes(base_includes)
