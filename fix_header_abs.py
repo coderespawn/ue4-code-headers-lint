@@ -345,22 +345,22 @@ def RTrimFromSubStr(text, substr):
 	
 def GenerateFileList(rootdir, extension, fileList, engineFiles = False):
 	for dir, subdirs, files in os.walk(rootdir):
+		reldir = dir[len(rootdir)+1:]
+		reldir = reldir.replace("\\", "/")
+		if engineFiles:
+			reldir = RTrimFromSubStr(reldir, "Public")
+			reldir = RTrimFromSubStr(reldir, "Classes")
+			reldir = RTrimFromSubStr(reldir, "Private")
+			if reldir[0:1] == "/":
+				reldir = reldir[:1]
+			reldir = reldir.strip()
+		
+		if reldir.startswith("Microsoft"):
+			continue
+		
 		for file in files:
 			if not file.endswith(extension):
 				continue
-			reldir = dir[len(rootdir)+1:]
-			reldir = reldir.replace("\\", "/")
-			if engineFiles:
-				reldir = RTrimFromSubStr(reldir, "Public")
-				reldir = RTrimFromSubStr(reldir, "Classes")
-				reldir = RTrimFromSubStr(reldir, "Private")
-				if reldir[0:1] == "/":
-					reldir = reldir[:1]
-				reldir = reldir.strip()
-			
-			if reldir.startswith("Microsoft"):
-				continue
-			
 			cname = file[:-len(extension)-1]
 			fileInfo = FileInfo(rootdir, reldir, cname)
 			if file.endswith(".%s" % extension):
