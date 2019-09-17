@@ -358,6 +358,9 @@ def GenerateFileList(rootdir, extension, fileList, engineFiles = False):
 					reldir = reldir[:1]
 				reldir = reldir.strip()
 			
+			if reldir.startswith("Microsoft"):
+				continue
+			
 			cname = file[:-len(extension)-1]
 			fileInfo = FileInfo(rootdir, reldir, cname)
 			if file.endswith(".%s" % extension):
