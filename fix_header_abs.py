@@ -21,7 +21,7 @@ def GetPluginConfig():
 	return ReadJson(sys.argv[1])
 
 def PrintUsage():
-	print ("Usage: %s <PluginConfigFile.json> <PluginSourceDir>" % os.path.basename(__file__))
+	print("Usage: %s <PluginConfigFile.json> <PluginSourceDir>" % os.path.basename(__file__))
 	
 	
 if len(sys.argv) < 3:
@@ -31,23 +31,23 @@ if len(sys.argv) < 3:
 # grab the script config
 BaseConfig = GetBaseConfig()
 if not BaseConfig:
-	print ("cannot find base config file. aborting..")
+	print("cannot find base config file. aborting..")
 	sys.exit()
 
 #grab the plugin config
 PluginConfig = GetPluginConfig()
 if not PluginConfig:
-	print ("Invalid plugin config file")
+	print("Invalid plugin config file")
 	PrintUsage()
 	sys.exit()
 
 ENGINE_VER = PluginConfig["engine_version"]
 if not ENGINE_VER:
-	print ("Missing engine_version in project config")
+	print("Missing engine_version in project config")
 	sys.exit()
 	
 if not ENGINE_VER in BaseConfig["engine_path"]:
-	print ("Unsupported engine version: %s" % ENGINE_VER)
+	print("Unsupported engine version: %s" % ENGINE_VER)
 	sys.exit()
 
 
@@ -59,11 +59,11 @@ WHITELIST_PATHS = PluginConfig.get("whitelist_includes", [])
 ###
 
 if not PLUGIN_SOURCE:
-	print ("plugin_source_dir not provided in args")
+	print("plugin_source_dir not provided in args")
 	sys.exit()
 	
 if not COPYRIGHT_NOTICE:
-	print ("copyright not provided in base configuration")
+	print("copyright not provided in base configuration")
 	sys.exit()
 
 	
@@ -223,13 +223,13 @@ def ProcessSourceRawLines(rawLines, cname):
 		if not bProcessingHeader:
 			code.append(rawLine)
 			if IsLineInclude(rawLine):
-				print "WARN: Include not processed: %s.cpp" % cname
+				print("WARN: Include not processed: %s.cpp" % cname)
 			
 	return pch, includes, code
 	
 def ProcessSourceFile(info):
 	filePath = "%s/%s/%s.cpp" % (info.rootdir, info.dir, info.cname)
-	#print "Source:", info.cname
+	#print("Source:", info.cname)
 	
 	rawLines = readFile(filePath)
 	pch, base_includes, code = ProcessSourceRawLines(rawLines, info.cname)
@@ -284,7 +284,7 @@ def ProcessHeaderRawLines(rawLines, cname):
 		if not bProcessingHeader:
 			code.append(rawLine)
 			if IsLineInclude(rawLine):
-				print "WARN: Include not processed: %s.h" % cname
+				print("WARN: Include not processed: %s.h" % cname)
 			
 	return includes, genheader, code
 
@@ -304,12 +304,12 @@ def ValidateHeaderRawLines(rawLines, filename):
 		if m:
 			params = m.group(2)
 			if params.lower().find('category') == -1:
-				print "Blueprint access doesn't have a category. [{}.h:{}] {}".format(filename, i + 1, line)
+				print("Blueprint access doesn't have a category. [{}.h:{}] {}".format(filename, i + 1, line))
 
 	
 def ProcessHeaderFile(info):
 	filePath = "%s/%s/%s.h" % (info.rootdir, info.dir, info.cname)
-	#print "Header:", info.cname
+	#print("Header:", info.cname)
 	
 	rawLines = readFile(filePath)
 	ValidateHeaderRawLines(rawLines, info.cname)
@@ -367,15 +367,15 @@ def GenerateFileList(rootdir, extension, fileList, engineFiles = False):
 				fileList[cname] = fileInfo
 
 #Parse the engine code
-print "Paring engine code"
+print("Paring engine code")
 for enginedir in enginedirs:
 	GenerateFileList(enginedir, "h", engineHeaders, True)
 
-print "Parsed %d Headers" % len(engineHeaders)
+print("Parsed %d Headers" % len(engineHeaders))
 
 
 #Parse the plugin code				
-print "Parsing plugin code"
+print("Parsing plugin code")
 sourceList = {}
 for rootdir in rootdirs:
 	rootPublic = "%s/Public" % rootdir
@@ -384,7 +384,7 @@ for rootdir in rootdirs:
 	GenerateFileList(rootPrivate, "h", userHeaders)
 	GenerateFileList(rootPublic, "cpp", sourceList)
 	GenerateFileList(rootPrivate, "cpp", sourceList)
-print "Parsed %d Headers, %d Sources" % (len(userHeaders), len(sourceList))
+print("Parsed %d Headers, %d Sources" % (len(userHeaders), len(sourceList)))
 
 NumSourceFilesModified = 0
 NumHeaderFilesModified = 0
@@ -397,4 +397,4 @@ for key, info in userHeaders.items():
 	if ProcessHeaderFile(info):
 		NumHeaderFilesModified = NumHeaderFilesModified + 1
 
-print "Written %d Headers, %d Sources" % (NumHeaderFilesModified, NumSourceFilesModified)
+print("Written %d Headers, %d Sources" % (NumHeaderFilesModified, NumSourceFilesModified))
