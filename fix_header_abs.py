@@ -56,6 +56,7 @@ PLUGIN_SOURCE = sys.argv[2]
 ENGINE_SOURCE = BaseConfig["engine_path"][ENGINE_VER]
 COPYRIGHT_NOTICE = BaseConfig["copyright"]
 WHITELIST_PATHS = PluginConfig.get("whitelist_includes", [])
+IGNORE_FILES = PluginConfig.get("ignore_files", [])
 ###
 
 if not PLUGIN_SOURCE:
@@ -361,6 +362,13 @@ def GenerateFileList(rootdir, extension, fileList, engineFiles = False):
 		for file in files:
 			if not file.endswith(extension):
 				continue
+
+			if not engineFiles:
+				fullPath = reldir.strip() + "/" + file
+				if fullPath in IGNORE_FILES:
+					#print ("Ignoring file:", fullPath)
+					continue
+
 			cname = file[:-len(extension)-1]
 			fileInfo = FileInfo(rootdir, reldir, cname)
 			if file.endswith(".%s" % extension):
