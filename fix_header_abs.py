@@ -5,6 +5,17 @@ from subprocess import call
 from collections import namedtuple
 import json
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    
 
 def ReadJson(filename):
 	with open(filename) as json_file:  
@@ -405,4 +416,5 @@ for key, info in userHeaders.items():
 	if ProcessHeaderFile(info):
 		NumHeaderFilesModified = NumHeaderFilesModified + 1
 
-print("Written %d Headers, %d Sources" % (NumHeaderFilesModified, NumSourceFilesModified))
+message = "Written " + bcolors.BOLD + bcolors.OKCYAN + "%d" + bcolors.ENDC + " Headers, " + bcolors.BOLD + bcolors.OKCYAN + "%d" + bcolors.ENDC + " Sources"
+print(message % (NumHeaderFilesModified, NumSourceFilesModified))
