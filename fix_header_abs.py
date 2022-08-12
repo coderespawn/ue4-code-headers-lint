@@ -238,12 +238,21 @@ def ProcessSourceRawLines(rawLines, cname):
 				print("WARN: Include not processed: %s.cpp" % cname)
 			
 	return pch, includes, code
-	
+
+
+def ShouldIgnoreFile(first_line):
+	return first_line.startswith('//~')
+
+
 def ProcessSourceFile(info):
 	filePath = "%s/%s/%s.cpp" % (info.rootdir, info.dir, info.cname)
 	#print("Source:", info.cname)
 	
 	rawLines = readFile(filePath)
+	
+	if len(rawLines) > 0 and ShouldIgnoreFile(rawLines[0]):
+		return
+
 	pch, base_includes, code = ProcessSourceRawLines(rawLines, info.cname)
 	
 	includes = []
@@ -324,6 +333,9 @@ def ProcessHeaderFile(info):
 	#print("Header:", info.cname)
 	
 	rawLines = readFile(filePath)
+	if len(rawLines) > 0 and ShouldIgnoreFile(rawLines[0]):
+		return
+
 	ValidateHeaderRawLines(rawLines, info.cname)
 	base_includes, genheader, code = ProcessHeaderRawLines(rawLines, info.cname)
 	
