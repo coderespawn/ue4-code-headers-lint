@@ -177,22 +177,33 @@ def writeFile(path, lines):
 def stringify_path(path):
 	return path.replace("\\", "/")
 
+
 def stringify(text):
 	return text.replace("\"", "\\\"").replace("/", "\\/")
 
+
 def IsLineInclude(line):
 	return line.startswith("#include ")
-	
+
+
 def IsLineCopyright(line):
 	sline = line.strip()
 	return sline.startswith("//$ Copyright") # and sline.endswith("$//")
 
+
+def IsCustomHeaderBlockComment(line):
+	sline = line.strip()
+	return sline.startswith("//!!")
+
+
 def IsComment(line):
 	return line.strip().startswith("//")
-	
+
+
 def IsLineEmpty(line):
 	return len(line.strip()) == 0
-	
+
+
 def AreLinesEqual(linesA, linesB):
 	if len(linesA) != len(linesB):
 		return False
@@ -204,40 +215,56 @@ def AreLinesEqual(linesA, linesB):
 			
 	return True
 	
-# returns pch, includes[], code[]
+# returns success, pch, includes[], custom_includes[], code[]
 def ProcessSourceRawLines(rawLines, cname):
 	code = []
 	includes = []
+	custom_includes = []
 	pch = ""
 	bFoundPCH = False
 	
 	# Make sure we have a line ending
 	if len(rawLines) > 0 and len(rawLines[-1]) > 0:
 		rawLines.append("")
-	
+
+	bCustomHeaderBlock = False;
 	bProcessingHeader = True
 	for rawLine in rawLines:
-		if bProcessingHeader:
-			if IsLineEmpty(rawLine):
-				continue
-			elif IsLineCopyright(rawLine):
-				continue
-			elif IsLineInclude(rawLine):
-				if not bFoundPCH:
-					bFoundPCH = True
-					pch = rawLine
+
+		if IsCustomHeaderBlockComment(rawLine):
+			bCustomHeaderBlock = not bCustomHeaderBlock
+			custom_includes.append(rawLine)
+			continue
+
+		if bCustomHeaderBlock:
+			custom_includes.append(rawLine)
+
+		if not bCustomHeaderBlock:
+			if bProcessingHeader:
+				if IsLineEmpty(rawLine):
+					continue
+				elif IsLineCopyright(rawLine):
+					continue
+				elif IsLineInclude(rawLine):
+					if not bFoundPCH:
+						bFoundPCH = True
+						pch = rawLine
+					else:
+						includes.append(rawLine)
 				else:
-					includes.append(rawLine)
-					
-			else:
-				bProcessingHeader = False;
+					bProcessingHeader = False;
 		
 		if not bProcessingHeader:
 			code.append(rawLine)
 			if IsLineInclude(rawLine):
 				print("WARN: Include not processed: %s.cpp" % cname)
-			
-	return pch, includes, code
+
+	Success = True
+	if bCustomHeaderBlock:
+		print("WARN: Malformed custom include block. %s.cpp" % cname)
+		Success = False
+
+	return Success, pch, includes, custom_includes, code
 
 
 def ShouldIgnoreFile(first_line):
@@ -251,14 +278,17 @@ def ProcessSourceFile(info):
 	rawLines = readFile(filePath)
 	
 	if len(rawLines) > 0 and ShouldIgnoreFile(rawLines[0]):
-		return
+		return False
 
-	pch, base_includes, code = ProcessSourceRawLines(rawLines, info.cname)
+	success, pch, base_includes, custom_includes, code = ProcessSourceRawLines(rawLines, info.cname)
+	if not success:
+		return False
 	
 	includes = []
 	includes.append(ProcessInclude(pch)[0])
 	includes.append("")
 	includes.extend(ProcessIncludes(base_includes))
+	includes.extend(custom_includes)
 	
 	lines = []
 	lines.append(COPYRIGHT_NOTICE)
@@ -273,41 +303,57 @@ def ProcessSourceFile(info):
 	writeFile(filePath, lines)
 	return True
 
-# returns includes[], genheader, code[]
+# returns success, includes[], custom_includes[], genheader, code[]
 def ProcessHeaderRawLines(rawLines, cname):
 	code = []
 	includes = []
+	custom_includes = []
 	genheader = None
 	
 	# Make sure we have a line ending
 	if len(rawLines) > 0 and len(rawLines[-1]) > 0:
 		rawLines.append("")
-	
+
+	bCustomHeaderBlock = False;
 	bProcessingHeader = True
 	for rawLine in rawLines:
-		if bProcessingHeader:
-			if IsLineEmpty(rawLine):
-				continue
-			elif IsLineCopyright(rawLine):
-				continue
-			elif rawLine.strip() == '#pragma once':
-				continue
-			elif rawLine.strip() == '#include \"CoreMinimal.h\"':
-				continue
-			elif IsLineInclude(rawLine):
-				if rawLine.strip().endswith(".generated.h\""):
-					genheader = rawLine
+		if IsCustomHeaderBlockComment(rawLine):
+			bCustomHeaderBlock = not bCustomHeaderBlock
+			custom_includes.append(rawLine)
+			continue
+
+		if bCustomHeaderBlock:
+			custom_includes.append(rawLine)
+
+		if not bCustomHeaderBlock:
+			if bProcessingHeader:
+				if IsLineEmpty(rawLine):
+					continue
+				elif IsLineCopyright(rawLine):
+					continue
+				elif rawLine.strip() == '#pragma once':
+					continue
+				elif rawLine.strip() == '#include \"CoreMinimal.h\"':
+					continue
+				elif IsLineInclude(rawLine):
+					if rawLine.strip().endswith(".generated.h\""):
+						genheader = rawLine
+					else:
+						includes.append(rawLine)
 				else:
-					includes.append(rawLine)
-			else:
-				bProcessingHeader = False;
+					bProcessingHeader = False;
 		
 		if not bProcessingHeader:
 			code.append(rawLine)
 			if IsLineInclude(rawLine):
 				print("WARN: Include not processed: %s.h" % cname)
-			
-	return includes, genheader, code
+
+	Success = True
+	if bCustomHeaderBlock:
+		print("WARN: Malformed custom include block. %s.cpp" % cname)
+		Success = False
+
+	return Success, includes, custom_includes, genheader, code
 
 
 def StripComment(line):
@@ -334,11 +380,14 @@ def ProcessHeaderFile(info):
 	
 	rawLines = readFile(filePath)
 	if len(rawLines) > 0 and ShouldIgnoreFile(rawLines[0]):
-		return
+		return False
 
 	ValidateHeaderRawLines(rawLines, info.cname)
-	base_includes, genheader, code = ProcessHeaderRawLines(rawLines, info.cname)
-	
+	success, base_includes, custom_includes, genheader, code = ProcessHeaderRawLines(rawLines, info.cname)
+
+	if not success:
+		return False
+
 	includes = ProcessIncludes(base_includes)
 	
 	lines = []
@@ -347,6 +396,7 @@ def ProcessHeaderFile(info):
 	lines.append("#pragma once")
 	lines.append("#include \"CoreMinimal.h\"")
 	lines.extend(includes)
+	lines.extend(custom_includes)
 	if genheader:
 		lines.append(genheader)
 		
