@@ -489,6 +489,29 @@ for enginedir in enginedirs:
 
 print("Parsed engine code [%d Headers]" % len(engineHeaders))
 
+externalHeaders = {}
+if "external_game_modules" in PluginConfig:
+	for GameModuleName in PluginConfig["external_game_modules"]:
+		ExternalGameModPath = SolutionDir / "Source" / GameModuleName
+		if ExternalGameModPath.exists():
+			GenerateFileList(str(ExternalGameModPath), "h", externalHeaders, True)
+		else:
+			print("ERROR: Cannot find game module path: " + GameModuleName)
+
+if "external_plugins" in PluginConfig:
+	for ExternalPluginName in PluginConfig["external_plugins"]:
+		ExternalPluginPath = SolutionDir / "Plugins" / "GameFeatures" / ExternalPluginName
+		if not ExternalPluginPath.exists():
+			ExternalPluginPath = SolutionDir / "Plugins" / ExternalPluginName
+
+		if ExternalPluginPath.exists():
+			GenerateFileList(str(ExternalPluginPath), "h", externalHeaders, True)
+		else:
+			print("ERROR: Cannot find plugin path: " + ExternalPluginName)
+
+print("Parsed external code [%d Headers]" % len(externalHeaders))
+
+engineHeaders.update(externalHeaders)
 
 #Parse the plugin code
 sourceList = {}
