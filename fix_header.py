@@ -9,6 +9,7 @@ import json
 
 class bcolors:
     HEADER = '\033[95m'
+    OKRED = '\033[91m'
     OKBLUE = '\033[94m'
     OKCYAN = '\033[96m'
     OKGREEN = '\033[92m'
@@ -18,6 +19,9 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     
+
+def PrintError(ErrorMessage):
+	print (bcolors.BOLD + bcolors.FAIL + "Error: " + bcolors.ENDC + ErrorMessage)
 
 def ReadJson(filename):
 	with open(filename) as json_file:  
@@ -40,7 +44,7 @@ def GetPluginConfig(PluginPath):
 	return data
 
 def PrintUsage():
-	print("Usage: %s <PluginConfigFile.json> <PluginSourceDir>" % os.path.basename(__file__))
+	print("Usage: %s <SolutionDir> <CurrentFileDir>" % os.path.basename(__file__))
 
 ########################################################################
 
@@ -67,7 +71,7 @@ while PluginPath != PluginPath.parent:
 	PluginPath = PluginPath.parent
 
 if not PluginPath.parent:
-	print("Cannot find plugin path")
+	PrintError("Cannot find plugin path")
 	sys.exit();
 
 print ("Plugin: " + PluginPath.name)
@@ -79,14 +83,19 @@ if len(sys.argv) < 3:
 # grab the script config
 BaseConfig = GetBaseConfig()
 if not BaseConfig:
-	print("cannot find base config file. aborting..")
+	PrintError("cannot find base config file. aborting..")
 	sys.exit()
 
 #grab the plugin config
 PluginConfig = GetPluginConfig(PluginPath)
+ScriptEnabled = PluginConfig.get("enabled", False)
+
+if not ScriptEnabled:
+	PrintError("Header lint is not enabled in this module")
+	sys.exit()
 
 if not ENGINE_VERSION in BaseConfig["engine_path"]:
-	print("Unsupported engine version: %s" % ENGINE_VERSION)
+	PrintError("Unsupported engine version: %s" % ENGINE_VERSION)
 	sys.exit()
 
 
@@ -98,7 +107,7 @@ IGNORE_FILES = PluginConfig.get("ignore_files", [])
 ###
 
 if not COPYRIGHT_NOTICE:
-	print("copyright not provided in base configuration")
+	PrintError("copyright not provided in base configuration")
 	sys.exit()
 
 	
