@@ -487,9 +487,10 @@ def GenerateFileList(rootdir, extension, fileList, engineFiles = False):
 					continue
 
 			cname = file[:-len(extension)-1]
-			fileInfo = FileInfo(rootdir, reldir, cname)
-			if file.endswith(".%s" % extension):
-				fileList[cname] = fileInfo
+			if True: #not cname in fileList:
+				fileInfo = FileInfo(rootdir, reldir, cname)
+				if file.endswith(".%s" % extension):
+					fileList[cname] = fileInfo
 
 #Parse the engine code
 # print("Paring engine code")
