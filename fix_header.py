@@ -227,7 +227,7 @@ def stringify(text):
 
 
 def IsLineInclude(line):
-	return line.startswith("#include ")
+	return line.startswith("#include ") and not line.endswith(".inl\"")
 
 
 def IsLineCopyright(line):
