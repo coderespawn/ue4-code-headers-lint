@@ -2,11 +2,12 @@ import os
 import glob
 import re
 import sys
-import pathlib;
+import pathlib
 from subprocess import call
 from collections import namedtuple
 import json
-
+import atexit
+from datetime import datetime
 
 class bcolors:
     HEADER = '\033[95m'
@@ -65,8 +66,39 @@ def check_filenames(directory, max_length):
 
     return long_filenames
 
-########################################################################
 
+class DebugLogger:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DebugLogger, cls).__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
+
+    def _initialize(self):
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        log_dir = os.path.join(script_dir, "log")
+        os.makedirs(log_dir, exist_ok=True)  # Create log directory if it doesn't exist
+        self.filename = os.path.join(log_dir, "header_lint_debug.log")
+        self.file = open(self.filename, 'w', encoding='utf-8')  # 'w' mode overwrites the file
+        atexit.register(self.close)
+        self.log("Debug logging started")
+
+    def log(self, message):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.file.write(f"[{timestamp}] {message}\n")
+        self.file.flush()  # Ensure it's written immediately
+
+    def close(self):
+        if not self.file.closed:
+            self.log("Debug logging ended")
+            self.file.close()
+            print(f"Debug information has been written to {self.filename}")
+
+
+########################################################################
+debug_logger = DebugLogger()
 SolutionDir = pathlib.Path(sys.argv[1])
 
 for file in SolutionDir.glob("*.uproject"):
@@ -104,6 +136,8 @@ BaseConfig = GetBaseConfig()
 if not BaseConfig:
     PrintError("cannot find base config file. aborting..")
     sys.exit()
+
+preferred_paths = BaseConfig.get("preferred_paths", [])
 
 # grab the plugin config
 PluginConfig = GetPluginConfig(PluginPath)
@@ -149,7 +183,7 @@ rootdirs = ModuleList
 #	rootdirs.append("%s/%s" % (PLUGIN_SOURCE, ModuleName))
 
 
-FileInfo = namedtuple("FileInfo", "rootdir dir cname")
+FileInfo = namedtuple("FileInfo", "rootdir dir cname module_path")
 userHeaders = {}
 engineHeaders = {}
 
@@ -487,14 +521,36 @@ def RTrimFromSubStr(text, substr):
     return text
 
 
-def GenerateFileList(rootdir, extension, fileList, engineFiles=False):
+def LTrimFromSubStr(text, substr):
+    index = text.find(substr)
+    if index != -1:
+        text = text[:index]
+    if text.endswith("/"):
+        text = text[:-1]
+    return text.strip()
+
+def score_path(path, preferred_paths):
+    for i, preferred in enumerate(preferred_paths):
+        if preferred in path:
+            return len(preferred_paths) - i
+    return 0
+
+
+def GenerateFileList(rootdir, extension, fileList, engineFiles=False, preferred_paths=[]):
     for dir, subdirs, files in os.walk(rootdir):
         reldir = dir[len(rootdir) + 1:]
         reldir = reldir.replace("\\", "/")
+        module_path = reldir
         if engineFiles:
             reldir = RTrimFromSubStr(reldir, "Public")
             reldir = RTrimFromSubStr(reldir, "Classes")
             reldir = RTrimFromSubStr(reldir, "Private")
+
+            #module_path = LTrimFromSubStr(module_path, "Public")
+            #module_path = LTrimFromSubStr(module_path, "Classes")
+            #module_path = LTrimFromSubStr(module_path, "Private")
+            module_path.strip()
+
             if reldir[0:1] == "/":
                 reldir = reldir[:1]
             reldir = reldir.strip()
@@ -506,23 +562,37 @@ def GenerateFileList(rootdir, extension, fileList, engineFiles=False):
             if not file.endswith(extension):
                 continue
 
+            fullPath = reldir.strip() + "/" + file
             if not engineFiles:
-                fullPath = reldir.strip() + "/" + file
                 if fullPath in IGNORE_FILES:
                     # print ("Ignoring file:", fullPath)
                     continue
 
+                if file in IGNORE_FILES:
+                    # print ("Ignoring file:", fullPath)
+                    continue
+
             cname = file[:-len(extension) - 1]
-            if True:  # not cname in fileList:
-                fileInfo = FileInfo(rootdir, reldir, cname)
-                if file.endswith(".%s" % extension):
+            fileInfo = FileInfo(rootdir, reldir, cname, module_path)
+            new_score = score_path(module_path, preferred_paths)
+
+            if cname in fileList:
+                existing_score = score_path(fileList[cname].module_path, preferred_paths)
+                if new_score > existing_score:
                     fileList[cname] = fileInfo
+            else:
+                fileList[cname] = fileInfo
+
+
+            #if True:  # not cname in fileList:
+            #    if file.endswith(".%s" % extension):
+            #        fileList[cname] = fileInfo
 
 
 # Parse the engine code
 # print("Paring engine code")
 for enginedir in enginedirs:
-    GenerateFileList(enginedir, "h", engineHeaders, True)
+    GenerateFileList(enginedir, "h", engineHeaders, True, preferred_paths)
 
 print("Parsed engine code [%d Headers]" % len(engineHeaders))
 

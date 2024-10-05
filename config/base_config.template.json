@@ -1,9 +1,22 @@
 {
 	"engine_path": {
-		"5.0EA": "C:\UnrealEngine\UE_5.0EA\Engine\Source",
-		"4.26": "C:\UnrealEngine\UE_4.24\Engine\Source",
-		"4.25": "C:\UnrealEngine\UE_4.25\Engine\Source",
-		"4.24": "C:\UnrealEngine\UE_4.24\Engine\Source"
+		"5.0": "D:\\Games\\UE_5.0\\Engine\\Source",
+		"5.1": "C:\\Program Files\\Epic Games\\UE_5.1\\Engine\\Source",
+		"5.2": "D:\\Games\\UE_5.2\\Engine\\Source",
+		"5.3": "D:\\Games\\UE_5.3\\Engine\\Source",
+		"5.4": "E:\\UnrealEngine\\UE_5.4\\Engine\\Source",
+		"5.5": "E:\\UnrealEngine\\UE_5.5\\Engine\\Source",
+		"5.6": "E:\\UnrealEngine\\UE_5.6\\Engine\\Source",
+		"5.7": "E:\\UnrealEngine\\UE_5.7\\Engine\\Source",
+		"5.8": "E:\\UnrealEngine\\UE_5.8\\Engine\\Source",
+		"5.9": "E:\\UnrealEngine\\UE_5.9\\Engine\\Source",
+		"5.10": "E:\\UnrealEngine\\UE_5.10\\Engine\\Source"
 	},
-	"copyright": "//$ Copyright 2015-21, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//"
+	"copyright": "//$ Copyright 2015-24, Code Respawn Technologies Pvt Ltd - All Rights Reserved $//",
+	"preferred_paths": [
+		"Core/Public",
+		"Engine/Public",
+		"CoreUObject/Public",
+		"UnrealEd/Classes"
+	]
 }
