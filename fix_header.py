@@ -403,6 +403,14 @@ def ProcessSourceFile(info):
     writeFile(filePath, lines)
     return True
 
+def HasUObjectMacros(rawLines):
+    # Check if any line contains UCLASS(, USTRUCT(, or UENUM(
+    pattern = r'(UCLASS|USTRUCT|UENUM)\s*\('
+    for line in rawLines:
+        if re.search(pattern, StripComment(line)):
+            return True
+    return False
+
 
 # returns success, includes[], custom_includes[], genheader, code[]
 def ProcessHeaderRawLines(rawLines, cname):
@@ -410,6 +418,7 @@ def ProcessHeaderRawLines(rawLines, cname):
     includes = []
     custom_includes = []
     genheader = None
+    needs_generated = HasUObjectMacros(rawLines)
 
     # Make sure we have a line ending
     if len(rawLines) > 0 and len(rawLines[-1]) > 0:
@@ -439,10 +448,11 @@ def ProcessHeaderRawLines(rawLines, cname):
                 elif IsLineInclude(rawLine):
                     if rawLine.strip().endswith(".generated.h\""):
                         genheader = rawLine
+                        needs_generated = False
                     else:
                         includes.append(rawLine)
                 else:
-                    bProcessingHeader = False;
+                    bProcessingHeader = False
 
         if not bProcessingHeader:
             code.append(rawLine)
@@ -453,6 +463,10 @@ def ProcessHeaderRawLines(rawLines, cname):
     if bCustomHeaderBlock:
         print("WARN: Malformed custom include block. %s.cpp" % cname)
         Success = False
+
+    # If we need a generated header but don't have one, create it
+    if needs_generated and not genheader:
+        genheader = f'#include "{cname}.generated.h"'
 
     return Success, includes, custom_includes, genheader, code
 
@@ -466,7 +480,7 @@ def StripComment(line):
 
 def ValidateHeaderRawLines(rawLines, filename):
     # Check if blueprint properties have category defined
-    pattern = '(UPROPERTY|UFUNCTION)\((.*Blueprint.*)\)'
+    pattern = r'(UPROPERTY|UFUNCTION)\((.*Blueprint.*)\)'
     for i, rawLine in enumerate(rawLines):
         line = StripComment(rawLine)
         m = re.search(pattern, line)
