@@ -466,7 +466,13 @@ def ProcessHeaderRawLines(rawLines, cname):
 
     # If we need a generated header but don't have one, create it
     if needs_generated and not genheader:
-        genheader = f'#include "{cname}.generated.h"'
+        for line in rawLines:
+            if ".generated.h" in line:
+                needs_generated = False
+                break
+
+        if needs_generated:
+            genheader = f'#include "{cname}.generated.h"'
 
     return Success, includes, custom_includes, genheader, code
 
